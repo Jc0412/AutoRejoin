@@ -21,28 +21,38 @@ def is_roblox_running():
     except subprocess.CalledProcessError:
         return False
 
-def get_signed_in_accounts():
-    """Retrieve signed-in accounts from Roblox app's data directory."""
-    data_dir = f"/data/data/{ROBLOX_PACKAGE}/shared_prefs/"
+def get_accounts_from_executors(executors_dir):
+    """Retrieve account information from Roblox executor files."""
     accounts = []
-
-    if os.path.exists(data_dir):
-        files = os.listdir(data_dir)
-        for file in files:
-            if file.startswith("roblox_account"):
+    if os.path.exists(executors_dir):
+        for filename in os.listdir(executors_dir):
+            if filename.endswith(".lua"):  # Assuming executor files are Lua scripts
                 try:
-                    file_path = os.path.join(data_dir, file)
-                    with open(file_path, "r") as f:
-                        account_data = json.load(f)
-                        username = account_data.get("username", "Unknown")
-                        user_id = account_data.get("userId", "Unknown")
+                    with open(os.path.join(executors_dir, filename), "r") as f:
+                        executor_content = f.read()
+                        # Extract username and user ID from the executor file (adjust this based on your executor file format)
+                        username = extract_username_from_executor(executor_content) 
+                        user_id = extract_user_id_from_executor(executor_content)
                         accounts.append({"username": username, "user_id": user_id})
                 except Exception as e:
-                    console.log(f"[red]Error reading account file {file}: {e}")
+                    console.log(f"[red]Error reading executor file {filename}: {e}")
     else:
-        console.log("[red]Roblox data directory not accessible. Grant Termux root permissions.")
-
+        console.log(f"[red]Executor directory '{executors_dir}' not found.")
     return accounts
+
+def extract_username_from_executor(executor_content):
+    # Replace this with your actual logic to extract username from the executor content
+    # For example:
+    start_index = executor_content.find("username: ") + len("username: ")
+    end_index = executor_content.find("'", start_index)
+    return executor_content[start_index:end_index]
+
+def extract_user_id_from_executor(executor_content):
+    # Replace this with your actual logic to extract user ID from the executor content
+    # For example:
+    start_index = executor_content.find("userId: ") + len("userId: ")
+    end_index = executor_content.find("'", start_index)
+    return executor_content[start_index:end_index]
 
 def view_info():
     """View signed-in Roblox account info and provide options."""
@@ -70,18 +80,23 @@ def view_info():
 
 def setup_accounts():
     """Set up account information with Game ID."""
-    try:
-        username = input("Enter Roblox Username: ")
-        game_id = input("Enter Game ID (or leave blank for main menu): ")
+    executors_dir = input("Enter the path to your executors directory: ")
+    accounts = get_accounts_from_executors(executors_dir)
 
-        account_data = {"username": username, "game_id": game_id}
+    if accounts:
+        console.print("[bold cyan]Found accounts in executors:")
+        for i, account in enumerate(accounts, start=1):
+            console.print(f"{i}. Username: {account['username']}, User ID: {account['user_id']}")
 
+        # Save account information to file (optional)
+        account_data = {
+            "accounts": accounts
+        }
         with open(ACCOUNT_INFO_FILE, "w") as f:
             json.dump(account_data, f)
-
         console.log(f"[green]Account information saved to {ACCOUNT_INFO_FILE}")
-    except Exception as e:
-        console.log(f"[red]Error setting up accounts: {e}")
+    else:
+        console.log("[red]No accounts found in the specified directory.")
 
 def reconnect_roblox(game_id=None):
     """Reconnect Roblox by restarting the app."""
@@ -139,7 +154,7 @@ def main_menu():
         elif choice == "2":
             setup_accounts()
         elif choice == "3":
-            view_info() 
+            view_info()
         elif choice == "4":
             setup_auto_execute()
         elif choice == "5":
