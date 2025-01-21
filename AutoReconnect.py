@@ -3,6 +3,7 @@ import time
 import json
 import subprocess
 from rich.console import Console
+from rich.prompt import Prompt
 
 console = Console()
 
@@ -44,14 +45,43 @@ def get_signed_in_accounts():
     return accounts
 
 def view_info():
-    """View signed-in Roblox account info."""
+    """View signed-in Roblox account info and provide options."""
     accounts = get_signed_in_accounts()
     if accounts:
         console.print("[bold cyan]Signed-In Accounts:")
         for i, account in enumerate(accounts, start=1):
             console.print(f"{i}. Username: {account['username']}, User ID: {account['user_id']}")
+
+        while True:
+            choice = Prompt.ask("Enter account number to join (or 'q' to quit): ", choices=[str(i) for i in range(1, len(accounts) + 1)] + ["q"])
+
+            if choice == "q":
+                break
+            else:
+                try:
+                    account_index = int(choice) - 1
+                    selected_account = accounts[account_index]
+                    game_id = Prompt.ask("Enter Game ID or leave blank for main menu: ")
+                    reconnect_roblox(game_id=game_id)
+                except (ValueError, IndexError):
+                    console.log("[red]Invalid account number.")
     else:
         console.log("[red]No accounts detected. Make sure Roblox is logged in.")
+
+def setup_accounts():
+    """Set up account information with Game ID."""
+    try:
+        username = input("Enter Roblox Username: ")
+        game_id = input("Enter Game ID (or leave blank for main menu): ")
+
+        account_data = {"username": username, "game_id": game_id}
+
+        with open(ACCOUNT_INFO_FILE, "w") as f:
+            json.dump(account_data, f)
+
+        console.log(f"[green]Account information saved to {ACCOUNT_INFO_FILE}")
+    except Exception as e:
+        console.log(f"[red]Error setting up accounts: {e}")
 
 def reconnect_roblox(game_id=None):
     """Reconnect Roblox by restarting the app."""
@@ -98,18 +128,21 @@ def main_menu():
     while True:
         console.print("[bold cyan]\n--- Auto Rejoin Menu ---")
         console.print("1. Start Auto Rejoin")
-        console.print("2. View Info")
-        console.print("3. Setup Auto Execute Script")
-        console.print("4. Exit")
+        console.print("2. Setup Accounts")
+        console.print("3. View Info & Join")
+        console.print("4. Setup Auto Execute Script")
+        console.print("5. Exit")
         choice = input("Enter your choice: ").strip()
 
         if choice == "1":
             start_auto_rejoin()
         elif choice == "2":
-            view_info()
+            setup_accounts()
         elif choice == "3":
-            setup_auto_execute()
+            view_info() 
         elif choice == "4":
+            setup_auto_execute()
+        elif choice == "5":
             console.print("[bold red]Exiting...")
             break
         else:
